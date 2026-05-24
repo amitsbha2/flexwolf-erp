@@ -9,6 +9,124 @@ from openpyxl.styles import Border
 from openpyxl.styles import Side
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
+# ==========================================
+# FLEXWOLF PREMIUM LIGHT THEME
+# ==========================================
+
+st.set_page_config(
+    page_title="FLEXWOLF ERP",
+    page_icon="🐺",
+    layout="wide"
+)
+
+st.markdown(
+    """
+    <style>
+
+    /* MAIN APP */
+    .stApp {
+        background-color: #F3F4F6;
+        color: #111827;
+    }
+
+    /* SIDEBAR */
+    section[data-testid="stSidebar"] {
+        background-color: #1F4E78;
+    }
+
+    /* SIDEBAR TEXT */
+    section[data-testid="stSidebar"] * {
+        color: white !important;
+    }
+
+    /* HEADINGS */
+    h1, h2, h3 {
+        color: #1F4E78 !important;
+        font-weight: bold;
+    }
+
+    /* BUTTONS */
+    .stButton>button {
+
+        background-color: #2563EB;
+
+        color: white;
+
+        border-radius: 10px;
+
+        border: none;
+
+        padding: 10px 20px;
+
+        font-weight: bold;
+    }
+
+    .stButton>button:hover {
+
+        background-color: #1D4ED8;
+
+        color: white;
+    }
+
+    /* INPUTS */
+    .stTextInput input,
+    .stNumberInput input,
+    .stDateInput input,
+    .stSelectbox div[data-baseweb="select"] {
+
+        background-color: white !important;
+
+        color: black !important;
+
+        border-radius: 10px !important;
+
+        border: 1px solid #D1D5DB !important;
+    }
+
+    /* METRIC CARDS */
+    div[data-testid="metric-container"] {
+
+        background-color: white;
+
+        border-radius: 15px;
+
+        padding: 15px;
+
+        border: 1px solid #E5E7EB;
+
+        box-shadow: 0px 2px 8px rgba(0,0,0,0.08);
+    }
+
+    /* DATAFRAME */
+    .stDataFrame {
+
+        background-color: white;
+
+        border-radius: 10px;
+
+        padding: 10px;
+
+        border: 1px solid #E5E7EB;
+    }
+
+    /* SUCCESS */
+    .stSuccess {
+
+        border-radius: 10px;
+    }
+
+    /* TABLE */
+    table {
+
+        border-radius: 10px;
+
+        overflow: hidden;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 # LOGIN SESSION
 if "logged_in" not in st.session_state:
 
