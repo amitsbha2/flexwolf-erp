@@ -221,7 +221,10 @@ if role == "Admin":
         "Karigar Ledger",
         "Manage Data",
         "Export Reports",
-        "User Management"
+        "User Management",
+        "Staff Salary",
+        "Staff Advance",
+        "Staff Master"
     ]
 
 elif role == "Accountant":
@@ -658,7 +661,63 @@ elif menu == "Rate Master":
         st.warning(
             "Please add articles and machines first"
         )
-        # PRODUCTION
+            # ==========================================
+    # EDIT RATE
+    # ==========================================
+
+    st.divider()
+
+    st.subheader("✏️ Edit Rate")
+
+    rate_data = pd.read_sql(
+        """
+        SELECT *
+        FROM article_rates
+        """,
+        conn
+    )
+
+    st.dataframe(
+        rate_data,
+        use_container_width=True
+    )
+
+    edit_id = st.number_input(
+        "Enter Rate ID To Edit",
+        min_value=1,
+        key="edit_rate_id"
+    )
+
+    new_rate = st.number_input(
+        "Enter New Rate",
+        min_value=0.0,
+        key="new_rate_value"
+    )
+
+    if st.button(
+        "Update Rate",
+        key="update_rate_btn"
+    ):
+
+        cursor.execute(
+            """
+            UPDATE article_rates
+            SET rate=?
+            WHERE id=?
+            """,
+            (
+                new_rate,
+                edit_id
+            )
+        )
+
+        conn.commit()
+
+        st.success(
+            "Rate Updated Successfully"
+        )
+
+# PRODUCTION
 elif menu == "Production":
 
     st.header("Production Entry")
@@ -2264,3 +2323,380 @@ if menu == "User Management":
         st.success(
             "User Deleted Successfully"
         )
+       # =========================================================
+# STAFF SALARY MODULE
+# =========================================================
+
+elif menu == "Staff Salary":
+
+    st.header("💰 Staff Salary")
+
+    # DATE
+    entry_date = st.date_input("Date")
+
+    # STAFF DROPDOWN
+    staff_df = pd.read_sql(
+        "SELECT staff_name FROM staff_master ORDER BY staff_name",
+        conn
+    )
+
+    staff_name = st.selectbox(
+        "Staff Name",
+        staff_df["staff_name"]
+    )
+
+    # MONTHLY SALARY
+    monthly_salary = st.number_input(
+        "Monthly Salary",
+        min_value=0.0
+    )
+
+    # TOTAL ADVANCE
+    advance_data = pd.read_sql(
+        f"""
+        SELECT SUM(amount) as total_advance
+        FROM staff_advances
+        WHERE staff_name='{staff_name}'
+        """,
+        conn
+    )
+
+    total_advance = advance_data.iloc[0]["total_advance"]
+
+    if total_advance is None:
+        total_advance = 0
+
+    # FINAL SALARY
+    final_salary = monthly_salary - total_advance
+
+    st.info(f"Advance = ₹ {total_advance}")
+
+    st.success(f"Final Salary = ₹ {final_salary}")
+
+    # SAVE SALARY
+    if st.button("Save Salary"):
+
+        cursor.execute(
+            """
+            INSERT INTO staff_salary (
+                entry_date,
+                staff_name,
+                monthly_salary,
+                advance,
+                final_salary,
+                payment_status
+            )
+
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+
+            (
+                str(entry_date),
+                staff_name,
+                monthly_salary,
+                total_advance,
+                final_salary,
+                "Pending"
+            )
+        )
+
+        conn.commit()
+
+        st.success("Salary Saved Successfully")
+
+        st.rerun()
+
+
+    # =====================================================
+    # SALARY HISTORY
+    # =====================================================
+
+    st.divider()
+
+    st.subheader("📜 Salary History")
+
+    salary_history = pd.read_sql(
+        """
+        SELECT *
+        FROM staff_salary
+        ORDER BY id DESC
+        """,
+        conn
+    )
+
+    if len(salary_history) > 0:
+
+        for index, row in salary_history.iterrows():
+
+            with st.expander(
+                f"{row['staff_name']} | ₹ {row['final_salary']} | {row['payment_status']}"
+            ):
+
+                st.write(f"Date: {row['entry_date']}")
+                st.write(f"Salary: ₹ {row['monthly_salary']}")
+                st.write(f"Advance: ₹ {row['advance']}")
+                st.write(f"Final Salary: ₹ {row['final_salary']}")
+
+                col1, col2, col3 = st.columns(3)
+
+                # PAID BUTTON
+                with col1:
+
+                    if row["payment_status"] == "Pending":
+
+                        if st.button(
+                            "Mark Paid",
+                            key=f"paid_{row['id']}"
+                        ):
+
+                            cursor.execute(
+                                """
+                                UPDATE staff_salary
+                                SET payment_status='Paid'
+                                WHERE id=?
+                                """,
+                                (row["id"],)
+                            )
+
+                            conn.commit()
+
+                            st.rerun()
+
+                # DELETE BUTTON
+                with col2:
+
+                    if st.button(
+                        "Delete",
+                        key=f"delete_salary_{row['id']}"
+                    ):
+
+                        cursor.execute(
+                            "DELETE FROM staff_salary WHERE id=?",
+                            (row["id"],)
+                        )
+
+                        conn.commit()
+
+                        st.success("Deleted Successfully")
+
+                        st.rerun()
+   # =========================================================
+# STAFF ADVANCE MODULE
+# =========================================================
+
+elif menu == "Staff Advance":
+
+    st.header("💵 Staff Advance")
+
+    # DATE
+    entry_date = st.date_input("Date")
+
+    # STAFF DROPDOWN
+    staff_df = pd.read_sql(
+        "SELECT staff_name FROM staff_master ORDER BY staff_name",
+        conn
+    )
+
+    staff_name = st.selectbox(
+        "Staff Name",
+        staff_df["staff_name"],
+        key="advance_staff"
+    )
+
+    # ADVANCE AMOUNT
+    amount = st.number_input(
+        "Advance Amount",
+        min_value=0.0
+    )
+
+    # REMARKS
+    remarks = st.text_input("Remarks")
+
+    # SAVE ADVANCE
+    if st.button("Save Advance"):
+
+        cursor.execute(
+            """
+            INSERT INTO staff_advances (
+                entry_date,
+                staff_name,
+                amount,
+                remarks
+            )
+
+            VALUES (?, ?, ?, ?)
+            """,
+
+            (
+                str(entry_date),
+                staff_name,
+                amount,
+                remarks
+            )
+        )
+
+        conn.commit()
+
+        st.success("Advance Saved Successfully")
+
+        st.rerun()
+
+
+    # =====================================================
+    # ADVANCE HISTORY
+    # =====================================================
+
+    st.divider()
+
+    st.subheader("📜 Advance History")
+
+    advance_history = pd.read_sql(
+        """
+        SELECT *
+        FROM staff_advances
+        ORDER BY id DESC
+        """,
+        conn
+    )
+
+    if len(advance_history) > 0:
+
+        for index, row in advance_history.iterrows():
+
+            with st.expander(
+                f"{row['staff_name']} | ₹ {row['amount']}"
+            ):
+
+                st.write(f"Date: {row['entry_date']}")
+                st.write(f"Amount: ₹ {row['amount']}")
+                st.write(f"Remarks: {row['remarks']}")
+
+                # EDIT SECTION
+                new_amount = st.number_input(
+                    "Edit Amount",
+                    value=float(row["amount"]),
+                    key=f"amount_{row['id']}"
+                )
+
+                new_remarks = st.text_input(
+                    "Edit Remarks",
+                    value=str(row["remarks"]),
+                    key=f"remarks_{row['id']}"
+                )
+
+                col1, col2 = st.columns(2)
+
+                # UPDATE BUTTON
+                with col1:
+
+                    if st.button(
+                        "Update",
+                        key=f"update_{row['id']}"
+                    ):
+
+                        cursor.execute(
+                            """
+                            UPDATE staff_advances
+                            SET amount=?,
+                                remarks=?
+                            WHERE id=?
+                            """,
+
+                            (
+                                new_amount,
+                                new_remarks,
+                                row["id"]
+                            )
+                        )
+
+                        conn.commit()
+
+                        st.success("Updated Successfully")
+
+                        st.rerun()
+
+                # DELETE BUTTON
+                with col2:
+
+                    if st.button(
+                        "Delete",
+                        key=f"delete_advance_{row['id']}"
+                    ):
+
+                        cursor.execute(
+                            "DELETE FROM staff_advances WHERE id=?",
+                            (row["id"],)
+                        )
+
+                        conn.commit()
+
+                        st.success("Deleted Successfully")
+
+                        st.rerun()
+        # ==========================================
+# STAFF MASTER
+# ==========================================
+
+elif menu == "Staff Master":
+
+    st.header("👨 Staff Master")
+
+    # ADD STAFF
+    st.subheader("➕ Add Staff")
+
+    new_staff = st.text_input("Staff Name")
+
+    if st.button("Add Staff"):
+
+        if new_staff != "":
+
+            try:
+                cursor.execute(
+                    "INSERT INTO staff_master (staff_name) VALUES (?)",
+                    (new_staff,)
+                )
+
+                conn.commit()
+
+                st.success("Staff Added Successfully")
+
+            except:
+                st.error("Staff Already Exists")
+
+
+    st.divider()
+
+    # STAFF LIST
+    st.subheader("📋 Staff List")
+
+    staff_df = pd.read_sql(
+        "SELECT * FROM staff_master ORDER BY staff_name",
+        conn
+    )
+
+    if len(staff_df) > 0:
+
+        for index, row in staff_df.iterrows():
+
+            col1, col2 = st.columns([5,1])
+
+            with col1:
+                st.write(row["staff_name"])
+
+            with col2:
+
+                if st.button(
+                    "Delete",
+                    key=f"delete_staff_{row['id']}"
+                ):
+
+                    cursor.execute(
+                        "DELETE FROM staff_master WHERE id=?",
+                        (row["id"],)
+                    )
+
+                    conn.commit()
+
+                    st.success("Staff Deleted")
+
+                    st.rerun()
