@@ -722,126 +722,212 @@ elif menu == "Production":
 
     st.header("Production Entry")
 
-    karigar_data = pd.read_sql(
-        "SELECT * FROM karigars",
+    # =========================
+    # LOAD KARIGAR
+    # =========================
+
+    karigar_df = pd.read_sql(
+        "SELECT karigar_name, machine_name FROM karigars ORDER BY karigar_name",
         conn
     )
 
-    if len(karigar_data) > 0:
+    karigar_list = karigar_df["karigar_name"].tolist()
 
-        karigar = st.selectbox(
-            "Select Karigar",
-            karigar_data["karigar_name"]
-        )
+    karigar_name = st.selectbox(
+        "Select Karigar",
+        karigar_list
+    )
 
-        karigar_row = karigar_data[
-            karigar_data["karigar_name"] == karigar
-        ]
+    machine_name = karigar_df[
+        karigar_df["karigar_name"] == karigar_name
+    ]["machine_name"].values[0]
 
-        machine = karigar_row.iloc[0]["machine_name"]
+    st.success(f"Machine: {machine_name}")
 
-        st.success(
-            f"Machine: {machine}"
-        )
+    # =========================
+    # LOAD ARTICLE
+    # =========================
 
-        article_data = pd.read_sql(
-            "SELECT * FROM articles",
-            conn
-        )
+    article_df = pd.read_sql(
+        "SELECT article_name, rate FROM article_rates",
+        conn
+    )
 
-        article = st.selectbox(
-            "Select Article",
-            article_data["article_name"]
-        )
+    article_list = article_df["article_name"].tolist()
 
-        rate_data = pd.read_sql(
-            f'''
-            SELECT *
-            FROM article_rates
-            WHERE article_name='{article}'
-            AND machine_name='{machine}'
-            ''',
-            conn
-        )
+    article_name = st.selectbox(
+        "Select Article",
+        article_list
+    )
 
-        if len(rate_data) > 0:
+    rate = article_df[
+        article_df["article_name"] == article_name
+    ]["rate"].values[0]
 
-            rate = float(
-                rate_data.iloc[0]["rate"]
+    st.info(f"Piece Rate: ₹{rate}")
+
+    # =========================
+    # QTY & AMOUNT
+    # =========================
+
+    qty = st.number_input(
+        "Qty",
+        min_value=0,
+        step=1
+    )
+
+    amount = qty * rate
+
+    st.warning(f"Total Amount: ₹{amount}")
+
+    # =========================
+    # SAVE PRODUCTION
+    # =========================
+
+    if st.button("Save Production"):
+
+        cursor.execute("""
+            INSERT INTO production (
+                entry_date,
+                karigar_name,
+                machine_name,
+                article_name,
+                qty,
+                rate,
+                amount,
+                payment_status
             )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            str(date.today()),
+            karigar_name,
+            machine_name,
+            article_name,
+            qty,
+            rate,
+            amount,
+            "Pending"
+        ))
 
-            st.info(
-                f"Piece Rate: ₹{rate}"
-            )
+        conn.commit()
 
-            qty = st.number_input(
-                "Qty",
-                min_value=1
-            )
+        st.success("Production Saved")
 
-            amount = qty * rate
+    # =========================
+    # PAYMENT SUMMARY
+    # =========================
 
-            st.warning(
-                f"Total Amount: ₹{amount}"
-            )
+    st.subheader("Karigar Payment Summary")
 
-            if st.button("Save Production"):
+    summary_df = pd.read_sql("""
 
-                cursor.execute(
-                    """
-                    INSERT INTO production
-                    (
-                        entry_date,
-                        karigar_name,
-                        machine_name,
-                        article_name,
-                        qty,
-                        rate,
-                        amount
-                    )
-                    VALUES(?,?,?,?,?,?,?)
-                    """,
-                    (
-                        str(date.today()),
-                        karigar,
-                        machine,
-                        article,
-                        qty,
-                        rate,
-                        amount
-                    )
-                )
+        SELECT
+            karigar_name,
+            SUM(amount) as total_production
+        FROM production
+        GROUP BY karigar_name
+
+    """, conn)
+
+    for index, row in summary_df.iterrows():
+
+        karigar = row["karigar_name"]
+        total_prod = row["total_production"]
+
+        # =========================
+        # TOTAL ADVANCE
+        # =========================
+
+        adv_df = pd.read_sql(f"""
+
+            SELECT
+                SUM(amount) as total_advance
+            FROM advances
+            WHERE karigar_name='{karigar}'
+
+        """, conn)
+
+        total_adv = adv_df.iloc[0]["total_advance"]
+
+        if total_adv is None:
+            total_adv = 0
+
+        # =========================
+        # FINAL PAYMENT
+        # =========================
+
+        final_payment = total_prod - total_adv
+
+        # =========================
+        # PAYMENT STATUS
+        # =========================
+
+        status_df = pd.read_sql(f"""
+
+            SELECT payment_status
+            FROM production
+            WHERE karigar_name='{karigar}'
+            LIMIT 1
+
+        """, conn)
+
+        payment_status = status_df.iloc[0]["payment_status"]
+
+        st.markdown("---")
+
+        st.write(f"### 👨‍🔧 {karigar}")
+        st.write(f"Production Amount: ₹{total_prod}")
+        st.write(f"Advance: ₹{total_adv}")
+        st.write(f"Final Payable: ₹{final_payment}")
+
+        col1, col2 = st.columns(2)
+
+        # =========================
+        # PAID BUTTON
+        # =========================
+
+        with col1:
+
+            if payment_status == "Pending":
+
+                if st.button(
+                    f"✅ Mark Paid - {karigar}",
+                    key=f"paid_{karigar}"
+                ):
+
+                    cursor.execute("""
+                        UPDATE production
+                        SET payment_status='Paid'
+                        WHERE karigar_name=?
+                    """, (karigar,))
+
+                    conn.commit()
+
+                    st.rerun()
+
+            else:
+                st.success("Paid")
+
+        # =========================
+        # DELETE BUTTON
+        # =========================
+
+        with col2:
+
+            if st.button(
+                f"🗑 Delete - {karigar}",
+                key=f"delete_{karigar}"
+            ):
+
+                cursor.execute("""
+                    DELETE FROM production
+                    WHERE karigar_name=?
+                """, (karigar,))
 
                 conn.commit()
 
-                st.success(
-                    "Production Saved"
-                )
+                st.rerun()
 
-        else:
-
-            st.error(
-                "Rate Not Found"
-            )
-
-    else:
-
-        st.warning(
-            "Please add karigar first"
-        )
-
-    st.subheader("Production History")
-
-    production_data = pd.read_sql(
-        """
-        SELECT *
-        FROM production
-        ORDER BY id DESC
-        """,
-        conn
-    )
-
-    st.dataframe(production_data)
     # FABRIC STOCK
 elif menu == "Fabric Stock":
 
@@ -1510,132 +1596,131 @@ if menu == "Karigar Ledger":
             karigar_data["karigar_name"]
         )
 
-        # =========================
+        # =====================================================
         # PRODUCTION HISTORY
-        # =========================
+        # =====================================================
 
-        production_data = pd.read_sql(
-            f"""
-            SELECT
+    st.divider()
 
-                entry_date as 'Date',
+    st.subheader("📜 Production History")
 
-                article_name as 'Article',
+    production_history = pd.read_sql(
+    """
+    SELECT *
+    FROM production
+    ORDER BY id DESC
+    """,
+    conn
+    )
 
-                qty as 'Qty',
+    if len(production_history) > 0:
 
-                rate as 'Rate',
+      for index, row in production_history.iterrows():
 
-                amount as 'Amount'
+        with st.expander(
+           f"{row['karigar_name']} | {row['machine_name']} | ₹ {row['amount']} | {row['payment_status']}"
+        ):
 
-            FROM production
+            st.write(f"Date: {row['entry_date']}")
+            st.write(f"Article: {row['article_name']}")
+            st.write(f"Qty: {row['qty']}")
+            st.write(f"Rate: ₹ {row['rate']}")
+            st.write(f"Amount: ₹ {row['amount']}")
 
-            WHERE karigar_name='{karigar}'
-
-            ORDER BY id DESC
-            """,
-            conn
-        )
-
-        # =========================
-        # ADVANCE HISTORY
-        # =========================
-
-        advance_data = pd.read_sql(
-            f"""
-            SELECT
-
-                entry_date as 'Date',
-
-                amount as 'Amount',
-
-                remarks as 'Remarks'
-
-            FROM advances
-
-            WHERE karigar_name='{karigar}'
-
-            ORDER BY id DESC
-            """,
-            conn
-        )
-
-        # =========================
-        # TOTALS
-        # =========================
-
-        total_production = 0
-        total_advance = 0
-
-        if len(production_data) > 0:
-
-            total_production = (
-                production_data["Amount"].sum()
+            # EDIT SECTION
+            new_qty = st.number_input(
+                "Edit Qty",
+                value=float(row["qty"]),
+                key=f"qty_{row['id']}"
             )
 
-        if len(advance_data) > 0:
-
-            total_advance = (
-                advance_data["Amount"].sum()
+            new_rate = st.number_input(
+                "Edit Rate",
+                value=float(row["rate"]),
+                key=f"rate_{row['id']}"
             )
 
-        balance = (
-            total_production -
-            total_advance
-        )
+            new_amount = new_qty * new_rate
 
-        # =========================
-        # SUMMARY BOXES
-        # =========================
+            st.info(f"Updated Amount = ₹ {new_amount}")
 
-        col1, col2, col3 = st.columns(3)
+            col1, col2, col3 = st.columns(3)
 
-        col1.metric(
-            "Total Production",
-            f"₹ {total_production}"
-        )
+            # UPDATE
+            with col1:
 
-        col2.metric(
-            "Total Advance",
-            f"₹ {total_advance}"
-        )
+                if st.button(
+                    "Update",
+                    key=f"update_prod_{row['id']}"
+                ):
 
-        col3.metric(
-            "Balance Payable",
-            f"₹ {balance}"
-        )
+                    cursor.execute(
+                        """
+                        UPDATE production
+                        SET qty=?,
+                            rate=?,
+                            amount=?
+                        WHERE id=?
+                        """,
 
-        # =========================
-        # PRODUCTION HISTORY
-        # =========================
+                        (
+                            new_qty,
+                            new_rate,
+                            new_amount,
+                            row["id"]
+                        )
+                    )
 
-        st.subheader(
-            "Production History"
-        )
+                    conn.commit()
 
-        st.dataframe(
-            production_data,
-            use_container_width=True
-        )
+                    st.success("Updated Successfully")
 
-        # =========================
-        # ADVANCE HISTORY
-        # =========================
+                    st.rerun()
 
-        st.subheader(
-            "Advance History"
-        )
+            # PAID BUTTON
+            with col2:
 
-        st.dataframe(
-            advance_data,
-            use_container_width=True
-        )
+                if row["payment_status"] == "Pending":
 
-    else:
+                    if st.button(
+                        "Mark Paid",
+                        key=f"paid_prod_{row['id']}"
+                    ):
 
-        st.warning(
-            "Please Add Karigar First"
-        )
+                        cursor.execute(
+                            """
+                            UPDATE production
+                            SET payment_status='Paid'
+                            WHERE id=?
+                            """,
+                            (row["id"],)
+                        )
+
+                        conn.commit()
+
+                        st.success("Payment Marked Paid")
+
+                        st.rerun()
+
+            # DELETE
+            with col3:
+
+                if st.button(
+                    "Delete",
+                    key=f"delete_prod_{row['id']}"
+                ):
+
+                    cursor.execute(
+                        "DELETE FROM production WHERE id=?",
+                        (row["id"],)
+                    )
+
+                    conn.commit()
+
+                    st.success("Deleted Successfully")
+
+                    st.rerun()
+                    
         # ==========================================
 # MANAGE DATA
 # ==========================================
