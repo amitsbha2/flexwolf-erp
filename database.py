@@ -174,23 +174,23 @@ CREATE TABLE IF NOT EXISTS advances (
 )
 """)
 
-# =========================
-# STAFF SALARY
-# =========================
+# ==========================================
+# STAFF SALARY TABLE
+# ==========================================
+
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS staff_salary (
-
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-
     entry_date TEXT,
-
     staff_name TEXT,
-
-    salary REAL,
-
-    remarks TEXT
+    monthly_salary REAL,
+    advance REAL,
+    final_salary REAL,
+    payment_status TEXT
 )
 """)
+
+conn.commit()
 
 # SAVE
 conn.commit()
@@ -221,6 +221,39 @@ INSERT OR IGNORE INTO users
 
 VALUES
 ('admin', '1234', 'Admin')
+""")
+
+conn.commit()
+# ==========================================
+# STAFF ADVANCE TABLE
+# ==========================================
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS staff_advances (
+
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    entry_date TEXT,
+
+    staff_name TEXT,
+
+    amount REAL,
+
+    remarks TEXT
+    status TEXT DEFAULT 'Pending'
+)
+""")
+
+conn.commit()
+# =========================
+# STAFF MASTER TABLE
+# =========================
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS staff_master (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    staff_name TEXT UNIQUE
+)
 """)
 
 conn.commit()
