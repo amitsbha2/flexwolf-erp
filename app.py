@@ -1,41 +1,4 @@
 import streamlit as st
-
-st.set_page_config(
-    page_title="Garment ERP",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-hide_streamlit_style = """
-<style>
-
-#MainMenu {
-    visibility: hidden;
-}
-
-footer {
-    visibility: hidden;
-}
-
-header {
-    visibility: hidden;
-}
-
-/* Manage app button hide */
-[data-testid="stToolbar"] {
-    display: none;
-}
-
-/* Deploy button hide */
-[data-testid="stDecoration"] {
-    display: none;
-}
-
-</style>
-"""
-
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
-import streamlit as st
 import sqlite3
 import pandas as pd
 from datetime import date
@@ -46,6 +9,78 @@ from openpyxl.styles import Border
 from openpyxl.styles import Side
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
+from io import BytesIO
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils.dataframe import dataframe_to_rows
+# =====================================================
+# STYLED EXCEL EXPORT FUNCTION
+# =====================================================
+
+def create_styled_excel(df, sheet_name="Report"):
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet_name
+
+    # COLORS
+    header_fill = PatternFill(
+        start_color="1F4E78",
+        end_color="1F4E78",
+        fill_type="solid"
+    )
+
+    header_font = Font(
+        color="FFFFFF",
+        bold=True,
+        size=12
+    )
+
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    # ADD DATAFRAME
+    for row in dataframe_to_rows(df, index=False, header=True):
+        ws.append(row)
+
+    # STYLE HEADER
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = thin_border
+
+    # STYLE BODY
+    for row in ws.iter_rows(min_row=2):
+        for cell in row:
+            cell.border = thin_border
+            cell.alignment = Alignment(horizontal="center")
+
+    # AUTO WIDTH
+    for column_cells in ws.columns:
+
+        length = 0
+        column = column_cells[0].column_letter
+
+        for cell in column_cells:
+            try:
+                if len(str(cell.value)) > length:
+                    length = len(str(cell.value))
+            except:
+                pass
+
+        ws.column_dimensions[column].width = length + 5
+
+    # SAVE TO MEMORY
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return output
 # ==========================================
 # FLEXWOLF PREMIUM LIGHT THEME
 # ==========================================
@@ -242,63 +277,108 @@ if not st.session_state.logged_in:
 
 role = st.session_state.role
 
-if role == "Admin":
+# =====================================================
+# SIDEBAR
+# =====================================================
 
-    menu_options = [
+st.sidebar.title("Select Module")
+
+main_menu = st.sidebar.radio(
+    "Main Menu",
+    [
         "Dashboard",
-        "Machine Master",
-        "Karigar Master",
-        "Article Master",
-        "Rate Master",
-        "Production",
-        "Fabric Stock",
-        "Cutting",
-        "Box Packing",
-        "Advance Entry",
-        "Karigar Ledger",
-        "Manage Data",
-        "Export Reports",
-        "User Management",
-        "Staff Salary",
-        "Staff Advance",
-        "Staff Master"
+        "Karigar Management",
+        "Staff Management",
+        "Vendor Management",
+        "Inventory",
+        "Settings"
     ]
+)
 
-elif role == "Accountant":
+# =====================================================
+# KARIGAR MANAGEMENT
+# =====================================================
 
-    menu_options = [
-        "Dashboard",
-        "Karigar Ledger",
-        "Advance Entry",
-        "Export Reports"
-    ]
+if main_menu == "Karigar Management":
 
-elif role == "Cutting":
+    menu = st.sidebar.radio(
+        "Karigar Menu",
+        [
+            "Karigar Master",
+            "Machine Master",
+            "Article Master",
+            "Rate Master",
+            "Production",
+            "Advance Entry",
+            "Karigar Ledger"
+        ]
+    )
 
-    menu_options = [
-        "Dashboard",
-        "Fabric Stock",
-        "Cutting"
-    ]
+# =====================================================
+# STAFF MANAGEMENT
+# =====================================================
 
-elif role == "Packing":
+elif main_menu == "Staff Management":
 
-    menu_options = [
-        "Dashboard",
-        "Box Packing"
-    ]
+    menu = st.sidebar.radio(
+        "Staff Menu",
+        [
+            "Staff Master",
+            "Staff Advance",
+            "Staff Salary"
+        ]
+    )
+
+# =====================================================
+# VENDOR MANAGEMENT
+# =====================================================
+
+elif main_menu == "Vendor Management":
+
+    menu = st.sidebar.radio(
+        "Vendor Menu",
+        [
+            "Vendors"
+        ]
+    )
+
+# =====================================================
+# INVENTORY
+# =====================================================
+
+elif main_menu == "Inventory":
+
+    menu = st.sidebar.radio(
+        "Inventory Menu",
+        [
+            "Fabric Stock",
+            "Cutting",
+            "Box Packing"
+        ]
+    )
+
+# =====================================================
+# SETTINGS
+# =====================================================
+
+elif main_menu == "Settings":
+
+    menu = st.sidebar.radio(
+        "Settings Menu",
+        [
+            "Manage Data",
+            "Export Reports",
+            "User Management"
+        ]
+    )
+
+# =====================================================
+# DASHBOARD
+# =====================================================
 
 else:
 
-    menu_options = [
-        "Dashboard"
-    ]
-# SIDEBAR
-
-menu = st.sidebar.radio(
-    "Select Module",
-    menu_options
-)
+    menu = "Dashboard"
 
 # ==========================================
 # DASHBOARD
@@ -1981,270 +2061,94 @@ if menu == "Manage Data":
             st.success(
                 "Advance Deleted"
             )
-            # ==========================================
-# EXPORT REPORTS
-# ==========================================
 
-if menu == "Export Reports":
+# =====================================================
+# EXPORT REPORTS MODULE
+# =====================================================
 
-    st.header("📥 Export Excel Reports")
+elif menu == "Export Reports":
 
-    report_type = st.selectbox(
-        "Select Report",
-        [
-            "Production",
-            "Fabric Stock",
-            "Cutting",
-            "Box Packing",
-            "Advances"
-        ]
-    )
+    from io import BytesIO
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+    from openpyxl.styles import PatternFill
+    from openpyxl.styles import Alignment
+    from openpyxl.styles import Border
+    from openpyxl.styles import Side
 
-    # ======================================
-    # PRODUCTION
-    # ======================================
+    st.header("📤 Export Reports")
 
-    if report_type == "Production":
+    # =================================================
+    # EXCEL FUNCTION
+    # =================================================
 
-        data = pd.read_sql(
-            """
-            SELECT *
-            FROM production
-            ORDER BY id DESC
-            """,
-            conn
+    def create_excel(df, sheet_name):
+
+        wb = Workbook()
+
+        ws = wb.active
+
+        ws.title = sheet_name
+
+        # =============================================
+        # HEADER STYLE
+        # =============================================
+
+        header_fill = PatternFill(
+            start_color="1F4E78",
+            end_color="1F4E78",
+            fill_type="solid"
         )
 
-    # ======================================
-    # FABRIC STOCK
-    # ======================================
-
-    elif report_type == "Fabric Stock":
-
-        data = pd.read_sql(
-            """
-            SELECT *
-            FROM fabric_stock
-            ORDER BY id DESC
-            """,
-            conn
+        header_font = Font(
+            color="FFFFFF",
+            bold=True
         )
 
-    # ======================================
-    # CUTTING
-    # ======================================
-
-    elif report_type == "Cutting":
-
-        data = pd.read_sql(
-            """
-            SELECT *
-            FROM cutting
-            ORDER BY id DESC
-            """,
-            conn
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
         )
 
-    # ======================================
-    # BOX PACKING
-    # ======================================
+        # =============================================
+        # HEADERS
+        # =============================================
 
-    elif report_type == "Box Packing":
+        for col_num, column_name in enumerate(df.columns, 1):
 
-        data = pd.read_sql(
-            """
-            SELECT *
-            FROM box_packing
-            ORDER BY id DESC
-            """,
-            conn
-        )
-
-    # ======================================
-    # ADVANCES
-    # ======================================
-
-    elif report_type == "Advances":
-
-        data = pd.read_sql(
-            """
-            SELECT *
-            FROM advances
-            ORDER BY id DESC
-            """,
-            conn
-        )
-
-    # SHOW DATA
-    st.dataframe(
-        data,
-        use_container_width=True
-    )
-# ==========================================
-# EXPORT REPORTS
-# ==========================================
-
-if menu == "Export Reports":
-
-    st.header("📥 FLEXWOLF Excel Reports")
-
-    report_option = st.selectbox(
-        "Select Report Type",
-        [
-            "Production",
-            "Fabric Stock",
-            "Cutting",
-            "Box Packing",
-            "Advances"
-        ],
-        key="report_option_select"
-    )
-
-    # ======================================
-    # LOAD REPORT DATA
-    # ======================================
-
-    if report_option == "Production":
-
-        report_data = pd.read_sql(
-            "SELECT * FROM production ORDER BY id DESC",
-            conn
-        )
-
-    elif report_option == "Fabric Stock":
-
-        report_data = pd.read_sql(
-            "SELECT * FROM fabric_stock ORDER BY id DESC",
-            conn
-        )
-
-    elif report_option == "Cutting":
-
-        report_data = pd.read_sql(
-            "SELECT * FROM cutting ORDER BY id DESC",
-            conn
-        )
-
-    elif report_option == "Box Packing":
-
-        report_data = pd.read_sql(
-            "SELECT * FROM box_packing ORDER BY id DESC",
-            conn
-        )
-
-    elif report_option == "Advances":
-
-        report_data = pd.read_sql(
-            "SELECT * FROM advances ORDER BY id DESC",
-            conn
-        )
-
-    # ======================================
-    # SHOW DATA
-    # ======================================
-
-    st.dataframe(
-        report_data,
-        use_container_width=True
-    )
-
-    # ======================================
-    # GENERATE EXCEL
-    # ======================================
-
-    if st.button(
-        "Generate Styled Excel",
-        key="generate_excel_report_btn"
-    ):
-
-        output = BytesIO()
-
-        with pd.ExcelWriter(
-            output,
-            engine="openpyxl"
-        ) as writer:
-
-            report_data.to_excel(
-                writer,
-                index=False,
-                sheet_name="Report"
-            )
-
-            workbook = writer.book
-            worksheet = writer.sheets["Report"]
-
-            # ==================================
-            # TITLE
-            # ==================================
-
-            worksheet.insert_rows(1, 3)
-
-            max_col = worksheet.max_column
-
-            worksheet.merge_cells(
-                start_row=1,
-                start_column=1,
-                end_row=1,
-                end_column=max_col
-            )
-
-            title_cell = worksheet.cell(
+            cell = ws.cell(
                 row=1,
-                column=1
+                column=col_num
             )
 
-            title_cell.value = (
-                f"FLEXWOLF ERP - {report_option} REPORT"
-            )
+            cell.value = column_name
 
-            title_cell.font = Font(
-                size=18,
-                bold=True,
-                color="FFFFFF"
-            )
+            cell.fill = header_fill
 
-            title_cell.fill = PatternFill(
-                start_color="1F4E78",
-                end_color="1F4E78",
-                fill_type="solid"
-            )
+            cell.font = header_font
 
-            title_cell.alignment = Alignment(
+            cell.alignment = Alignment(
                 horizontal="center"
             )
 
-            # ==================================
-            # HEADER DESIGN
-            # ==================================
+            cell.border = border
 
-            header_fill = PatternFill(
-                start_color="4F81BD",
-                end_color="4F81BD",
-                fill_type="solid"
-            )
+        # =============================================
+        # DATA
+        # =============================================
 
-            header_font = Font(
-                bold=True,
-                color="FFFFFF"
-            )
+        for row_num, row_data in enumerate(df.values, 2):
 
-            thin = Side(
-                border_style="thin",
-                color="000000"
-            )
+            for col_num, value in enumerate(row_data, 1):
 
-            border = Border(
-                left=thin,
-                right=thin,
-                top=thin,
-                bottom=thin
-            )
+                cell = ws.cell(
+                    row=row_num,
+                    column=col_num
+                )
 
-            for cell in worksheet[4]:
-
-                cell.fill = header_fill
-
-                cell.font = header_font
+                cell.value = value
 
                 cell.border = border
 
@@ -2252,68 +2156,231 @@ if menu == "Export Reports":
                     horizontal="center"
                 )
 
-            # ==================================
-            # DATA STYLE
-            # ==================================
+        # =============================================
+        # AUTO WIDTH
+        # =============================================
 
-            for row in worksheet.iter_rows(
-                min_row=5,
-                max_row=worksheet.max_row,
-                min_col=1,
-                max_col=worksheet.max_column
-            ):
+        for column_cells in ws.columns:
 
-                for cell in row:
+            max_length = 0
 
-                    cell.border = border
+            column = column_cells[0].column_letter
 
-                    cell.alignment = Alignment(
-                        horizontal="center"
-                    )
+            for cell in column_cells:
 
-            # ==================================
-            # AUTO WIDTH
-            # ==================================
+                try:
 
-            for column in worksheet.columns:
+                    if len(str(cell.value)) > max_length:
 
-                max_length = 0
+                        max_length = len(str(cell.value))
 
-                column_number = column[0].column
+                except:
+                    pass
 
-                column_letter = get_column_letter(
-                    column_number
-                )
+            adjusted_width = max_length + 5
 
-                for cell in column:
+            ws.column_dimensions[column].width = adjusted_width
 
-                    try:
+        # =============================================
+        # SAVE
+        # =============================================
 
-                        if cell.value:
+        output = BytesIO()
 
-                            length = len(
-                                str(cell.value)
-                            )
+        wb.save(output)
 
-                            if length > max_length:
+        output.seek(0)
 
-                                max_length = length
+        return output
 
-                    except:
-                        pass
+    # =================================================
+    # REPORT OPTIONS
+    # =================================================
 
-                worksheet.column_dimensions[
-                    column_letter
-                ].width = max_length + 5
+    report_type = st.selectbox(
+        "Select Report",
+        [
+            "Production Report",
+            "Karigar Ledger",
+            "Vendor Bills",
+            "Vendor Payments",
+            "Staff Salary",
+            "Staff Advance"
+        ]
+    )
 
-        excel_file = output.getvalue()
+    # =================================================
+    # PRODUCTION REPORT
+    # =================================================
+
+    if report_type == "Production Report":
+
+        df = pd.read_sql(
+            "SELECT * FROM production ORDER BY id DESC",
+            conn
+        )
+
+        st.dataframe(
+            df,
+            use_container_width=True
+        )
+
+        excel_file = create_excel(
+            df,
+            "Production Report"
+        )
 
         st.download_button(
-            label="📥 Download Excel File",
-            data=excel_file,
-            file_name=f"FLEXWOLF_{report_option}_Report.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="download_excel_report_btn"
+            "⬇ Download Excel Report",
+            excel_file,
+            "production_report.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    # =================================================
+    # KARIGAR LEDGER
+    # =================================================
+
+    elif report_type == "Karigar Ledger":
+
+        df = pd.read_sql(
+            """
+            SELECT
+                karigar_name,
+                SUM(amount) as total_amount
+            FROM production
+            GROUP BY karigar_name
+            """,
+            conn
+        )
+
+        st.dataframe(
+            df,
+            use_container_width=True
+        )
+
+        excel_file = create_excel(
+            df,
+            "Karigar Ledger"
+        )
+
+        st.download_button(
+            "⬇ Download Excel Report",
+            excel_file,
+            "karigar_ledger.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    # =================================================
+    # VENDOR BILLS
+    # =================================================
+
+    elif report_type == "Vendor Bills":
+
+        df = pd.read_sql(
+            "SELECT * FROM vendor_bills ORDER BY id DESC",
+            conn
+        )
+
+        st.dataframe(
+            df,
+            use_container_width=True
+        )
+
+        excel_file = create_excel(
+            df,
+            "Vendor Bills"
+        )
+
+        st.download_button(
+            "⬇ Download Excel Report",
+            excel_file,
+            "vendor_bills.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    # =================================================
+    # VENDOR PAYMENTS
+    # =================================================
+
+    elif report_type == "Vendor Payments":
+
+        df = pd.read_sql(
+            "SELECT * FROM vendor_payments ORDER BY id DESC",
+            conn
+        )
+
+        st.dataframe(
+            df,
+            use_container_width=True
+        )
+
+        excel_file = create_excel(
+            df,
+            "Vendor Payments"
+        )
+
+        st.download_button(
+            "⬇ Download Excel Report",
+            excel_file,
+            "vendor_payments.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    # =================================================
+    # STAFF SALARY
+    # =================================================
+
+    elif report_type == "Staff Salary":
+
+        df = pd.read_sql(
+            "SELECT * FROM staff_salary ORDER BY id DESC",
+            conn
+        )
+
+        st.dataframe(
+            df,
+            use_container_width=True
+        )
+
+        excel_file = create_excel(
+            df,
+            "Staff Salary"
+        )
+
+        st.download_button(
+            "⬇ Download Excel Report",
+            excel_file,
+            "staff_salary.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    # =================================================
+    # STAFF ADVANCE
+    # =================================================
+
+    elif report_type == "Staff Advance":
+
+        df = pd.read_sql(
+            "SELECT * FROM staff_advances ORDER BY id DESC",
+            conn
+        )
+
+        st.dataframe(
+            df,
+            use_container_width=True
+        )
+
+        excel_file = create_excel(
+            df,
+            "Staff Advance"
+        )
+
+        st.download_button(
+            "⬇ Download Excel Report",
+            excel_file,
+            "staff_advance.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         # ==========================================
 # USER MANAGEMENT
@@ -2822,3 +2889,409 @@ elif menu == "Staff Master":
                     st.success("Staff Deleted")
 
                     st.rerun()
+                    # =========================================================
+# VENDORS MODULE
+# =========================================================
+
+elif menu == "Vendors":
+
+    st.header("🏢 Vendors Management")
+
+    vendor_menu = st.radio(
+        "Select Option",
+        [
+            "Vendor Master",
+            "Vendor Bills",
+            "Vendor Payments",
+            "Vendor Ledger"
+        ],
+        horizontal=True
+    )
+
+    # =====================================================
+    # VENDOR MASTER
+    # =====================================================
+
+    if vendor_menu == "Vendor Master":
+
+        st.subheader("Vendor Master")
+
+        vendor_name = st.text_input("Vendor Name")
+
+        vendor_type = st.selectbox(
+            "Vendor Type",
+            [
+                "Fabric",
+                "Accessories",
+                "Packaging",
+                "Transport",
+                "Other"
+            ]
+        )
+
+        if st.button("Save Vendor"):
+
+            if vendor_name != "":
+
+                cursor.execute("""
+                    INSERT INTO vendors
+                    (
+                        vendor_name,
+                        vendor_type
+                    )
+                    VALUES (?, ?)
+                """, (
+                    vendor_name,
+                    vendor_type
+                ))
+
+                conn.commit()
+
+                st.success("Vendor Saved Successfully")
+
+                st.rerun()
+
+        st.markdown("---")
+
+        st.subheader("📋 Vendor History")
+
+        vendor_df = pd.read_sql(
+            """
+            SELECT *
+            FROM vendors
+            ORDER BY id DESC
+            """,
+            conn
+        )
+
+        if not vendor_df.empty:
+
+            vendor_df.insert(0, "Select", False)
+
+            edited_vendor_df = st.data_editor(
+                vendor_df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+            selected_rows = edited_vendor_df[
+                edited_vendor_df["Select"] == True
+            ]
+
+            if not selected_rows.empty:
+
+                selected_vendor_id = int(
+                    selected_rows.iloc[0]["id"]
+                )
+
+                if st.button("🗑 Delete Selected Vendor"):
+
+                    cursor.execute(
+                        """
+                        DELETE FROM vendors
+                        WHERE id=?
+                        """,
+                        (selected_vendor_id,)
+                    )
+
+                    conn.commit()
+
+                    st.success("Vendor Deleted Successfully")
+
+                    st.rerun()
+
+    # =====================================================
+    # VENDOR BILLS
+    # =====================================================
+
+    elif vendor_menu == "Vendor Bills":
+
+        st.subheader("Vendor Bills")
+
+        vendor_df = pd.read_sql(
+            """
+            SELECT vendor_name
+            FROM vendors
+            ORDER BY vendor_name
+            """,
+            conn
+        )
+
+        vendor_list = vendor_df["vendor_name"].tolist()
+
+        selected_vendor = st.selectbox(
+            "Select Vendor",
+            vendor_list
+        )
+
+        entry_date = st.date_input("Bill Date")
+
+        bill_no = st.text_input("Bill Number")
+
+        bill_amount = st.number_input(
+            "Bill Amount",
+            min_value=0.0
+        )
+
+        if st.button("Save Bill"):
+
+            cursor.execute("""
+                INSERT INTO vendor_bills
+                (
+                    entry_date,
+                    vendor_name,
+                    bill_no,
+                    bill_amount
+                )
+                VALUES (?, ?, ?, ?)
+            """, (
+                str(entry_date),
+                selected_vendor,
+                bill_no,
+                bill_amount
+            ))
+
+            conn.commit()
+
+            st.success("Bill Saved Successfully")
+
+            st.rerun()
+
+        st.markdown("---")
+
+        st.subheader("📄 Bill History")
+
+        bill_df = pd.read_sql(
+            """
+            SELECT
+                id,
+                entry_date,
+                vendor_name,
+                bill_no,
+                bill_amount
+            FROM vendor_bills
+            WHERE vendor_name=?
+            ORDER BY id DESC
+            """,
+            conn,
+            params=(selected_vendor,)
+        )
+
+        if not bill_df.empty:
+
+            bill_df.insert(0, "Select", False)
+
+            edited_bill_df = st.data_editor(
+                bill_df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+            selected_rows = edited_bill_df[
+                edited_bill_df["Select"] == True
+            ]
+
+            if not selected_rows.empty:
+
+                selected_bill_id = int(
+                    selected_rows.iloc[0]["id"]
+                )
+
+                if st.button("🗑 Delete Selected Bill"):
+
+                    cursor.execute(
+                        """
+                        DELETE FROM vendor_bills
+                        WHERE id=?
+                        """,
+                        (selected_bill_id,)
+                    )
+
+                    conn.commit()
+
+                    st.success("Bill Deleted Successfully")
+
+                    st.rerun()
+
+    # =====================================================
+    # VENDOR PAYMENTS
+    # =====================================================
+
+    elif vendor_menu == "Vendor Payments":
+
+        st.subheader("Vendor Payments")
+
+        vendor_df = pd.read_sql(
+            """
+            SELECT vendor_name
+            FROM vendors
+            ORDER BY vendor_name
+            """,
+            conn
+        )
+
+        vendor_list = vendor_df["vendor_name"].tolist()
+
+        selected_vendor = st.selectbox(
+            "Select Vendor",
+            vendor_list,
+            key="payment_vendor"
+        )
+
+        entry_date = st.date_input("Payment Date")
+
+        payment_amount = st.number_input(
+            "Payment Amount",
+            min_value=0.0
+        )
+
+        payment_mode = st.selectbox(
+            "Payment Mode",
+            [
+                "Cash",
+                "Bank",
+                "UPI"
+            ]
+        )
+
+        remarks = st.text_input("Remarks")
+
+        if st.button("Save Payment"):
+
+            cursor.execute("""
+                INSERT INTO vendor_payments
+                (
+                    entry_date,
+                    vendor_name,
+                    payment_amount,
+                    payment_mode,
+                    remarks
+                )
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                str(entry_date),
+                selected_vendor,
+                payment_amount,
+                payment_mode,
+                remarks
+            ))
+
+            conn.commit()
+
+            st.success("Payment Saved Successfully")
+
+            st.rerun()
+
+        st.markdown("---")
+
+        st.subheader("💰 Payment History")
+
+        payment_df = pd.read_sql(
+            """
+            SELECT
+                id,
+                entry_date,
+                vendor_name,
+                payment_amount,
+                payment_mode,
+                remarks
+            FROM vendor_payments
+            WHERE vendor_name=?
+            ORDER BY id DESC
+            """,
+            conn,
+            params=(selected_vendor,)
+        )
+
+        if not payment_df.empty:
+
+            payment_df.insert(0, "Select", False)
+
+            edited_payment_df = st.data_editor(
+                payment_df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+            selected_rows = edited_payment_df[
+                edited_payment_df["Select"] == True
+            ]
+
+            if not selected_rows.empty:
+
+                selected_payment_id = int(
+                    selected_rows.iloc[0]["id"]
+                )
+
+                if st.button("🗑 Delete Selected Payment"):
+
+                    cursor.execute(
+                        """
+                        DELETE FROM vendor_payments
+                        WHERE id=?
+                        """,
+                        (selected_payment_id,)
+                    )
+
+                    conn.commit()
+
+                    st.success("Payment Deleted Successfully")
+
+                    st.rerun()
+
+    # =====================================================
+    # VENDOR LEDGER
+    # =====================================================
+
+    elif vendor_menu == "Vendor Ledger":
+
+        st.subheader("📒 Vendor Ledger")
+
+        ledger_df = pd.read_sql(
+            """
+            SELECT
+                v.vendor_name,
+
+                IFNULL(b.total_bill, 0) as total_bill,
+
+                IFNULL(p.total_paid, 0) as total_paid,
+
+                (
+                    IFNULL(b.total_bill, 0)
+                    -
+                    IFNULL(p.total_paid, 0)
+                ) as pending
+
+            FROM vendors v
+
+            LEFT JOIN
+            (
+                SELECT
+                    vendor_name,
+                    SUM(bill_amount) as total_bill
+                FROM vendor_bills
+                GROUP BY vendor_name
+            ) b
+
+            ON v.vendor_name = b.vendor_name
+
+            LEFT JOIN
+            (
+                SELECT
+                    vendor_name,
+                    SUM(payment_amount) as total_paid
+                FROM vendor_payments
+                GROUP BY vendor_name
+            ) p
+
+            ON v.vendor_name = p.vendor_name
+
+            ORDER BY v.vendor_name
+            """,
+            conn
+        )
+
+        st.dataframe(
+            ledger_df,
+            use_container_width=True
+        )
