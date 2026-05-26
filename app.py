@@ -1,4 +1,41 @@
 import streamlit as st
+
+st.set_page_config(
+    page_title="Garment ERP",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+hide_streamlit_style = """
+<style>
+
+#MainMenu {
+    visibility: hidden;
+}
+
+footer {
+    visibility: hidden;
+}
+
+header {
+    visibility: hidden;
+}
+
+/* Manage app button hide */
+[data-testid="stToolbar"] {
+    display: none;
+}
+
+/* Deploy button hide */
+[data-testid="stDecoration"] {
+    display: none;
+}
+
+</style>
+"""
+
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+import streamlit as st
 import sqlite3
 import pandas as pd
 from datetime import date
