@@ -628,127 +628,156 @@ elif menu == "Machine Master":
     )
 
     st.dataframe(data)
-    # KARIGAR MASTER
+    # =====================================================
+# KARIGAR MASTER
+# =====================================================
+
 elif menu == "Karigar Master":
 
-    st.header("Karigar Master")
+    st.title("👨‍🏭 Karigar Master")
 
-    machine_data = pd.read_sql(
-        "SELECT * FROM machines",
-        conn
+    # ==========================================
+    # ADD KARIGAR
+    # ==========================================
+
+    karigar_name = st.text_input(
+        "Karigar Name"
     )
 
-    if len(machine_data) > 0:
+    mobile_no = st.text_input(
+        "Mobile Number"
+    )
 
-        karigar = st.text_input(
-            "Karigar Name"
-        )
+    address = st.text_area(
+        "Address"
+    )
 
-        machine = st.selectbox(
-            "Select Machine",
-            machine_data["machine_name"]
-        )
+    if st.button("Save Karigar"):
 
-        if st.button("Save Karigar"):
+        if karigar_name != "":
 
             cursor.execute(
                 """
-                INSERT INTO karigars
-                (
+                INSERT INTO karigars(
                     karigar_name,
-                    machine_name
+                    mobile_no,
+                    address
                 )
-                VALUES(?,?)
+                VALUES(?,?,?)
                 """,
                 (
-                    karigar,
-                    machine
+                    karigar_name,
+                    mobile_no,
+                    address
                 )
             )
 
             conn.commit()
 
-            st.success("Karigar Saved")
+            st.success(
+                "✅ Karigar Saved Successfully"
+            )
 
-        data = pd.read_sql(
-            "SELECT * FROM karigars",
-            conn
+            st.rerun()
+
+        else:
+
+            st.warning(
+                "Please Enter Karigar Name"
+            )
+
+    st.divider()
+
+    # ==========================================
+    # KARIGAR HISTORY
+    # ==========================================
+
+    st.subheader("📋 Karigar History")
+
+    karigar_df = pd.read_sql(
+        """
+        SELECT *
+        FROM karigars
+        ORDER BY id DESC
+        """,
+        conn
+    )
+
+    if not karigar_df.empty:
+
+        # SELECT COLUMN
+        karigar_df.insert(0, "Select", False)
+
+        edited_df = st.data_editor(
+            karigar_df,
+            use_container_width=True,
+            hide_index=True
         )
 
-        st.dataframe(data)
+        selected_rows = edited_df[
+            edited_df["Select"] == True
+        ]
+
+        # ======================================
+        # DELETE BUTTON
+        # ======================================
+
+        if not selected_rows.empty:
+
+            selected_id = int(
+                selected_rows.iloc[0]["id"]
+            )
+
+            selected_name = (
+                selected_rows.iloc[0]["karigar_name"]
+            )
+
+            st.warning(
+                f"Selected Karigar : {selected_name}"
+            )
+
+            if st.button(
+                "🗑 Delete Selected Karigar"
+            ):
+
+                # DELETE KARIGAR
+                cursor.execute(
+                    """
+                    DELETE FROM karigars
+                    WHERE id=?
+                    """,
+                    (selected_id,)
+                )
+
+                # DELETE ADVANCES
+                cursor.execute(
+                    """
+                    DELETE FROM advances
+                    WHERE karigar_name=?
+                    """,
+                    (selected_name,)
+                )
+
+                # DELETE PRODUCTION
+                cursor.execute(
+                    """
+                    DELETE FROM production
+                    WHERE karigar_name=?
+                    """,
+                    (selected_name,)
+                )
+
+                conn.commit()
+
+                st.success(
+                    "✅ Karigar Deleted Successfully"
+                )
+
+                st.rerun()
 
     else:
 
-        st.warning(
-            "Please add machine first"
-        )
-        # =====================================
-# KARIGAR LIST
-# =====================================
-
-st.subheader("Karigar List")
-
-karigar_df = pd.read_sql(
-    """
-    SELECT *
-    FROM karigars
-    ORDER BY karigar_name
-    """,
-    conn
-)
-
-st.dataframe(
-    karigar_df,
-    use_container_width=True
-)
-
-# =====================================
-# DELETE KARIGAR
-# =====================================
-
-st.subheader("🗑 Delete Karigar")
-
-if not karigar_df.empty:
-
-    delete_karigar = st.selectbox(
-        "Select Karigar",
-        karigar_df["karigar_name"]
-    )
-
-    if st.button("Delete Karigar"):
-
-        # DELETE KARIGAR
-        cursor.execute(
-            """
-            DELETE FROM karigars
-            WHERE karigar_name=?
-            """,
-            (delete_karigar,)
-        )
-
-        # DELETE ADVANCES
-        cursor.execute(
-            """
-            DELETE FROM advances
-            WHERE karigar_name=?
-            """,
-            (delete_karigar,)
-        )
-
-        # DELETE PRODUCTION
-        cursor.execute(
-            """
-            DELETE FROM production
-            WHERE karigar_name=?
-            """,
-            (delete_karigar,)
-        )
-
-        conn.commit()
-
-        st.success("Karigar Deleted Successfully")
-
-        st.rerun()
+        st.info("No Karigars Found")
         # ARTICLE MASTER
 elif menu == "Article Master":
 
