@@ -63,7 +63,8 @@ CREATE TABLE IF NOT EXISTS production (
     article_name TEXT,
     qty INTEGER,
     rate REAL,
-    amount REAL
+    amount REAL,
+    payment_status TEXT
 )
 """)
 
@@ -253,6 +254,62 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS staff_master (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     staff_name TEXT UNIQUE
+)
+""")
+
+conn.commit()
+# ==========================================
+# VENDORS TABLE
+# ==========================================
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS vendors (
+
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    vendor_name TEXT UNIQUE,
+
+    vendor_type TEXT
+)
+""")
+
+# ==========================================
+# VENDOR BILLS
+# ==========================================
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS vendor_bills (
+
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    entry_date TEXT,
+
+    vendor_name TEXT,
+
+    bill_no TEXT,
+
+    bill_amount REAL
+)
+""")
+
+# ==========================================
+# VENDOR PAYMENTS
+# ==========================================
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS vendor_payments (
+
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    entry_date TEXT,
+
+    vendor_name TEXT,
+
+    payment_amount REAL,
+
+    payment_mode TEXT,
+
+    remarks TEXT
 )
 """)
 
