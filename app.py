@@ -1693,93 +1693,9 @@ if menu == "Box Packing":
         use_container_width=True
     )
 
-# ==========================================
-# ADVANCE ENTRY
-# ==========================================
 
-if menu == "Advance Entry":
 
-    st.header("💰 Advance Entry")
-
-    karigar_data = pd.read_sql(
-        "SELECT * FROM karigars",
-        conn
-    )
-
-    if len(karigar_data) > 0:
-
-        karigar = st.selectbox(
-            "Select Karigar",
-            karigar_data["karigar_name"]
-        )
-
-        entry_date = st.date_input(
-            "Date",
-            date.today()
-        )
-
-        amount = st.number_input(
-            "Advance Amount",
-            min_value=0.0
-        )
-
-        remarks = st.text_input(
-            "Remarks"
-        )
-
-        if st.button("Save Advance"):
-
-            cursor.execute(
-                """
-                INSERT INTO advances
-                (
-                    entry_date,
-                    karigar_name,
-                    amount,
-                    remarks
-                )
-                VALUES(?,?,?,?)
-                """,
-                (
-                    str(entry_date),
-                    karigar,
-                    amount,
-                    remarks
-                )
-            )
-
-            conn.commit()
-
-            st.success(
-                "Advance Saved Successfully"
-            )
-
-    st.subheader("Advance History")
-
-    advance_history = pd.read_sql(
-        """
-        SELECT
-
-            entry_date as 'Date',
-
-            karigar_name as 'Karigar',
-
-            amount as 'Amount',
-
-            remarks as 'Remarks'
-
-        FROM advances
-
-        ORDER BY id DESC
-        """,
-        conn
-    )
-
-    st.dataframe(
-        advance_history,
-        use_container_width=True
-    )
-# ==========================================
+ # ==========================================
 # ADVANCE ENTRY
 # ==========================================
 
@@ -1853,35 +1769,76 @@ if menu == "Advance Entry":
             "Please Add Karigar First"
         )
 
-    # ======================================
-    # ADVANCE HISTORY
-    # ======================================
+    # =====================================
+ # ADVANCE HISTORY
+ # =====================================
 
-    st.subheader("Advance History")
+    st.subheader("💵 Advance History")
 
-    advance_history = pd.read_sql(
-        """
-        SELECT
+    advance_df = pd.read_sql(
+    """
+    SELECT *
+    FROM advances
+    ORDER BY id DESC
+    """,
+    conn
+  )
 
-            entry_date as 'Date',
+    if not advance_df.empty:
 
-            karigar_name as 'Karigar',
-
-            amount as 'Amount',
-
-            remarks as 'Remarks'
-
-        FROM advances
-
-        ORDER BY id DESC
-        """,
-        conn
+     advance_df.insert(
+        0,
+        "Select",
+        False
     )
 
-    st.dataframe(
-        advance_history,
-        use_container_width=True
+    edited_df = st.data_editor(
+        advance_df,
+        use_container_width=True,
+        hide_index=True
     )
+
+    selected_rows = edited_df[
+        edited_df["Select"] == True
+    ]
+
+    # =================================
+    # DELETE BUTTON
+    # =================================
+
+    if not selected_rows.empty:
+
+        selected_id = int(
+            selected_rows.iloc[0]["id"]
+        )
+
+        st.warning(
+            f"Selected Advance ID : {selected_id}"
+        )
+
+        if st.button(
+            "🗑 Delete Selected Advance"
+        ):
+
+            cursor.execute(
+                """
+                DELETE FROM advances
+                WHERE id=?
+                """,
+                (selected_id,)
+            )
+
+            conn.commit()
+
+            st.success(
+                "Advance Deleted Successfully"
+            )
+
+            st.rerun()
+
+    else:
+
+     st.info("No Advance Entries Found")
 
 # =====================================
 # KARIGAR LEDGER
